@@ -3,6 +3,7 @@ package com.dieam.reactnativepushnotification.modules;
 import android.app.ActivityManager;
 import android.app.ActivityManager.RunningAppProcessInfo;
 import android.app.AlarmManager;
+import android.app.AlarmManager.AlarmClockInfo;
 import android.app.Application;
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -119,6 +120,24 @@ public class RNPushNotificationHelper {
         return null;
     }
 
+    private PendingIntent getAlarmClockIntent(Bundle bundle) {
+        try {
+            int notificationID = Integer.parseInt(bundle.getString("id"));
+
+            Intent notificationIntent = new Intent(context, RNPushNotificationPublisher.class);
+            notificationIntent.putExtra(RNPushNotificationPublisher.NOTIFICATION_ID, notificationID);
+            notificationIntent.putExtras(bundle);
+
+            int flags = Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE : PendingIntent.FLAG_UPDATE_CURRENT;
+
+            return PendingIntent.getBroadcast(context, notificationID, notificationIntent, flags);
+        } catch (Exception e) {
+            Log.e(LOG_TAG, "Unable to parse Notification ID", e);
+        }
+
+        return null;
+    }
+
     public void sendNotificationScheduled(Bundle bundle) {
         Class intentClass = getMainActivityClass();
         if (intentClass == null) {
@@ -162,6 +181,7 @@ public class RNPushNotificationHelper {
     public void sendNotificationScheduledCore(Bundle bundle) {
         long fireDate = (long) bundle.getDouble("fireDate");
         boolean allowWhileIdle = bundle.getBoolean("allowWhileIdle");
+        boolean setAlarmClock = bundle.getBoolean("setAlarmClock");
 
         // If the fireDate is in past, this will fire immediately and show the
         // notification to the user
@@ -171,10 +191,15 @@ public class RNPushNotificationHelper {
             return;
         }
 
+        PendingIntent alarmClockIntent = getAlarmClockIntent(bundle);
+
         Log.d(LOG_TAG, String.format("Setting a notification with id %s at time %s",
                 bundle.getString("id"), Long.toString(fireDate)));
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-            if (allowWhileIdle && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (setAlarmClock && alarmClockIntent != null &&  Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                getAlarmManager().setAlarmClock(new AlarmClockInfo(fireDate, alarmClockIntent), pendingIntent);
+            }
+            else if (allowWhileIdle && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 getAlarmManager().setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, fireDate, pendingIntent);
             } else {
                 getAlarmManager().setExact(AlarmManager.RTC_WAKEUP, fireDate, pendingIntent);
@@ -935,7 +960,12 @@ public class RNPushNotificationHelper {
         String soundName = channelInfo.hasKey("soundName") ? channelInfo.getString("soundName") : "default";
         int importance = channelInfo.hasKey("importance") ? channelInfo.getInt("importance") : 4;
         boolean vibrate = channelInfo.hasKey("vibrate") && channelInfo.getBoolean("vibrate");
-        long[] vibratePattern = vibrate ? new long[] { 0, DEFAULT_VIBRATION } : null;
+        long vibration = channelInfo.hasKey("vibration") ?  channelInfo.getInt("vibration") : DEFAULT_VIBRATION; 
+        ReadableArray vbrArray = channelInfo.hasKey("vibrationPattern") ? channelInfo.getArray("vibrationPattern") : null;
+        long[] vibratePattern = (vbrArray != null && vbrArray.size() != 0) ?  new long[vbrArray.size()] 
+                                : (vibrate ? new long[] { 0, vibration} : null);
+        for (int i = 0; vbrArray != null && i < vbrArray.size(); i++)
+            vibratePattern[i] = vbrArray.getInt(i);
 
         NotificationManager manager = notificationManager();
 
