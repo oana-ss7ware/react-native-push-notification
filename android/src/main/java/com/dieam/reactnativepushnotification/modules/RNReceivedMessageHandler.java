@@ -17,9 +17,10 @@ import androidx.core.app.NotificationCompat;
 
 import com.dieam.reactnativepushnotification.helpers.ApplicationBadgeHelper;
 import com.facebook.react.ReactApplication;
-import com.facebook.react.ReactInstanceManager;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContext;
+import com.facebook.react.ReactHost;
+import com.facebook.react.ReactInstanceEventListener;
 
 import org.json.JSONObject;
 
@@ -135,23 +136,20 @@ public class RNReceivedMessageHandler {
         handler.post(new Runnable() {
             public void run() {
                 // Construct and load our normal React JS code bundle
-                final ReactInstanceManager mReactInstanceManager = ((ReactApplication) mFirebaseMessagingService.getApplication()).getReactNativeHost().getReactInstanceManager();
-                ReactContext context = mReactInstanceManager.getCurrentReactContext();
+                final ReactHost mReactHost = ((ReactApplication) mFirebaseMessagingService.getApplication()).getReactHost();
+                ReactContext context = mReactHost.getCurrentReactContext();
                 // If it's constructed, send a notificationre
                 if (context != null) {
                     handleRemotePushNotification((ReactApplicationContext) context, bundle);
                 } else {
                     // Otherwise wait for construction, then send the notification
-                    mReactInstanceManager.addReactInstanceEventListener(new ReactInstanceManager.ReactInstanceEventListener() {
+                    mReactHost.addReactInstanceEventListener(new ReactInstanceEventListener() {
                         public void onReactContextInitialized(ReactContext context) {
                             handleRemotePushNotification((ReactApplicationContext) context, bundle);
-                            mReactInstanceManager.removeReactInstanceEventListener(this);
+                            mReactHost.removeReactInstanceEventListener(this);
                         }
                     });
-                    if (!mReactInstanceManager.hasStartedCreatingInitialContext()) {
-                        // Construct it in the background
-                        mReactInstanceManager.createReactContextInBackground();
-                    }
+                    mReactHost.start();
                 }
             }
         });

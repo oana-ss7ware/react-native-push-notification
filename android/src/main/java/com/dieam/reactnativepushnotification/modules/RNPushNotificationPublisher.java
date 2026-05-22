@@ -24,7 +24,7 @@ public class RNPushNotificationPublisher extends BroadcastReceiver {
 
         final Bundle bundle = intent.getExtras();
 
-        Log.v(LOG_TAG, "onMessageReceived: " + bundle);
+        Log.v(LOG_TAG, "NotificationPublisher: onMessageReceived: " + bundle);
 
         handleLocalNotification(context, bundle);
     }

@@ -25,7 +25,7 @@
   },
   "peerDependencies": {
     "@react-native-community/push-notification-ios": "^1.10.1",
-    "react-native": ">=0.33"
+    "react-native": ">=0.76"
   },
   "author": "zo0r <http://zo0r.me>",
   "license": "MIT"
